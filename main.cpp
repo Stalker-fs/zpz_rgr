@@ -4,15 +4,17 @@
 
 class MainWindow {
     public:
-        MainWindow(const Glib::RefPtr<Gtk::Builder>& builder) {           
+        MainWindow(const Glib::RefPtr<Gtk::Builder>& builder) {        
             builder->get_widget("learning1", window);
             builder->get_widget("apply1", apply);
+            builder->get_widget("reset1", reset);
+            builder->get_widget("exit1", _exit);
             builder->get_widget("input1", input);
             builder->get_widget("phrase1", phrase);
             builder->get_widget("counter1", counter);
 
-            if (!(window && apply && input && phrase && counter)) {
-                Gtk::MessageDialog dialog(*window, "Bad gui.glade file.", false, Gtk::MESSAGE_INFO, Gtk::BUTTONS_OK, true);
+            if (!(window && apply && reset && input && phrase && counter)) {
+                Gtk::MessageDialog dialog(*window, "Bad gui.glade file.", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
                 dialog.run();
                 return;
             }
@@ -20,6 +22,8 @@ class MainWindow {
             inp_buf = input->get_buffer();
             inp_buf->signal_changed().connect(sigc::mem_fun(*this, &MainWindow::on_txt_changed));
 
+            reset->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_reset));
+            _exit->signal_clicked().connect([]() {exit(0);});
         }
 
         Gtk::Window* get_window() {
@@ -29,6 +33,8 @@ class MainWindow {
     private:
         Gtk::Window* window = nullptr;
         Gtk::Button* apply = nullptr;
+        Gtk::Button* reset = nullptr;
+        Gtk::Button* _exit = nullptr;
         Gtk::TextView* input = nullptr;
         Gtk::Label* phrase = nullptr;
         Gtk::Label* counter = nullptr;
@@ -40,10 +46,31 @@ class MainWindow {
         Glib::Timer timer;
 
         std::string phrase_text;
+        int phrase_pos = 0;
+
+        std::vector<std::vector<double>*> delays;
+        std::vector<double>* delay_set = nullptr; 
+
+        void on_reset() {
+            is_phrase_set = false;
+            is_first_char = true;
+
+            phrase_text.clear();
+            phrase_pos = 0;
+
+            delays.clear();
+            delay_set = nullptr;
+
+            phrase->set_text("-");
+            inp_buf->set_text("");
+            counter->set_text("0");
+            reset->set_sensitive(false);
+            apply->set_sensitive(false);
+        }
 
         void on_txt_changed() {
             double time = timer.elapsed();
-            timer.reset(); // <-------------
+            timer.reset();
 
             auto text = inp_buf->get_text();
             if (!text.empty()) {
@@ -51,26 +78,61 @@ class MainWindow {
 
                 if (last_char == '\n') {
                     is_first_char = true;
+                    phrase_pos = 0;
+
+                    //save delays
+                    if (delay_set) {
+                        if (is_phrase_set && (delay_set->size() != phrase_text.length()-1)) {
+                            Gtk::MessageDialog dialog(*window, "Bad input. Incomplete phrase. Try again.", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
+                            dialog.run();
+                            return;
+                        }
+                        
+                        delays.push_back(delay_set);
+                        for (const double x : *delay_set) {
+                            std::cout << x << " ";
+                        }
+                        std::cout << std::endl;
+                        delay_set = nullptr;
+                        
+                        counter->set_text(std::to_string(delays.size()));
+
+                        if (delays.size() == 10) {
+                            apply->set_sensitive(true);
+                        }
+                    }
 
                     if (!is_phrase_set) {
                         is_phrase_set = true;
                         phrase_text = text.substr(0, text.length() - 1);
                         phrase->set_text(phrase_text);
+                        reset->set_sensitive(true);
 
-                        std::cout << std::endl;
+                        //std::cout << std::endl;
                         std::cout << "Phrase: " << text;
-                        std::cout << "-------------------------------"  << std::endl;
-                        // save in var                    
-                    } else {
-                        std::cout << std::endl;
-                        //save dalays
+                        //std::cout << "-------------------------------"  << std::endl;                  
                     }
 
                 } else {
+                    if (is_phrase_set) {
+                        if ((phrase_pos >= phrase_text.length()) || (phrase_text[phrase_pos] != last_char)) {
+                            phrase_pos = 0;
+                            delay_set = nullptr;
+                            Gtk::MessageDialog dialog(*window, "Bad input. Try again.", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
+                            dialog.run();
+                            inp_buf->insert_at_cursor("\n");
+                            return;
+                        } else {
+                            phrase_pos++;
+                        }                        
+                    }
+
                     if (!is_first_char) {
-                        std::cout << time * 1000 << " ";
+                        delay_set->push_back(time * 1000);
+                        //std::cout << delay_set->back() << " ";
                     } else {
                         is_first_char = false;
+                        delay_set = new std::vector<double>();
                     }
                 }
             }
@@ -87,55 +149,4 @@ int main(int argc, char* argv[]) {
     MainWindow app_main(builder);
     
     return gtk_app->run(*app_main.get_window());
-
-    // if (start) {
-    //     start->signal_clicked().connect([stop, start, &timer_f] {
-    //         stop->set_sensitive(true);
-    //         start->set_sensitive(false);
-    //         timer_f = true;
-    //         std::cout << "Timer created!" << std::endl;
-    //     });
-    // }
-
-    // if (stop) {
-    //     stop->signal_clicked().connect([stop, start, &timer_f, &timer] {
-    //         stop->set_sensitive(false);
-    //         start->set_sensitive(true);
-    //         timer_f = false;
-    //         //timer = nullptr;
-    //         std::cout << "Timer stoped!" << std::endl;
-    //     });
-    // }
-
-    // auto buffer = input->get_buffer();
-
-    // buffer->signal_changed().connect([buffer, &timer_f, &timer, &last_tm, &get_word] {
-    //     double seconds = timer.elapsed();
-
-    //     auto text = buffer->get_text();
-    //     if (!text.empty()) {
-    //         char last_char = text[text.length() - 1];
-    //         if (last_char == '\n') {
-    //             if (get_word == false) {
-    //                 get_word = true;
-    //                 //std::cout << buffer->get_text() << std::endl;
-    //             }
-    //             std::cout << "\n-" << std::endl;
-    //             timer_f = false;
-    //         } else {
-    //             if (timer_f == false) {
-    //                 timer_f = true;
-    //                 last_tm = seconds;
-    //             } else {
-    //                 std::cout << (seconds - last_tm) * 1000 << " ";
-    //                 last_tm = seconds;
-    //                 //std::cout << last_char << std::endl;                    
-    //             }
-    //         }
-    //     }
-    // });
-    // if (window)
-    //     return app->run(*window);
-
-    //return 0;
 }
