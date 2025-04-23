@@ -2,6 +2,8 @@
 #include <glibmm/timer.h>
 #include <iostream>
 
+#include "include/math_func.h"
+
 class MainWindow {
     public:
         MainWindow(const Glib::RefPtr<Gtk::Builder>& builder) {        
@@ -48,8 +50,8 @@ class MainWindow {
         std::string phrase_text;
         int phrase_pos = 0;
 
-        std::vector<std::vector<double>*> delays;
-        std::vector<double>* delay_set = nullptr; 
+        std::vector<std::vector<unsigned int>*> delays;
+        std::vector<unsigned int>* delay_set = nullptr; 
 
         void on_reset() {
             is_phrase_set = false;
@@ -87,30 +89,56 @@ class MainWindow {
                             dialog.run();
                             return;
                         }
-                        
-                        delays.push_back(delay_set);
-                        for (const double x : *delay_set) {
-                            std::cout << x << " ";
+
+                        if (!is_phrase_set) {
+                            phrase_text = text.substr(0, text.length() - 1);
+
+                            if (phrase_text.find('\n') != std::string::npos) {
+                                Gtk::MessageDialog dialog(*window, "Bad input. '\\n' in phase. Don't use it!", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
+                                dialog.run();
+                                phrase_text.clear();
+                                delay_set = nullptr;
+                                inp_buf->set_text("");
+                                return;
+                            }
+
+                            if (phrase_text.length() >= 3) {
+                                is_phrase_set = true;
+                                phrase->set_text(phrase_text);
+                                reset->set_sensitive(true);
+
+                                //std::cout << std::endl;
+                                std::cout << "Phrase: " << text;
+                                //std::cout << "-------------------------------"  << std::endl;                                
+                            } else {
+                                Gtk::MessageDialog dialog(*window, "Bad input. Short phrase. Min phrase len is: 3.", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
+                                dialog.run();
+                                phrase_text.clear();
+                                delay_set = nullptr;
+                                inp_buf->set_text("");
+                                return;
+                            }
+                
                         }
-                        std::cout << std::endl;
+
+                        if (check_delay_outliers(delay_set)) {
+                            delays.push_back(delay_set);
+                            for (const unsigned int x : *delay_set) {
+                                std::cout << x << " ";
+                            }
+                            std::cout << std::endl;
+                            
+                            counter->set_text(std::to_string(delays.size()));
+
+                            if (delays.size() == 10) {
+                                apply->set_sensitive(true);
+                            }                            
+                        } else {
+                            Gtk::MessageDialog dialog(*window, "Bad input. check_delay_outliers is false. Try again.", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
+                            dialog.run();
+                        }
+
                         delay_set = nullptr;
-                        
-                        counter->set_text(std::to_string(delays.size()));
-
-                        if (delays.size() == 10) {
-                            apply->set_sensitive(true);
-                        }
-                    }
-
-                    if (!is_phrase_set) {
-                        is_phrase_set = true;
-                        phrase_text = text.substr(0, text.length() - 1);
-                        phrase->set_text(phrase_text);
-                        reset->set_sensitive(true);
-
-                        //std::cout << std::endl;
-                        std::cout << "Phrase: " << text;
-                        //std::cout << "-------------------------------"  << std::endl;                  
                     }
 
                 } else {
@@ -128,11 +156,11 @@ class MainWindow {
                     }
 
                     if (!is_first_char) {
-                        delay_set->push_back(time * 1000);
+                        delay_set->push_back((int)(time * 1000000)); // µs
                         //std::cout << delay_set->back() << " ";
                     } else {
                         is_first_char = false;
-                        delay_set = new std::vector<double>();
+                        delay_set = new std::vector<unsigned int>();
                     }
                 }
             }
@@ -144,7 +172,7 @@ int main(int argc, char* argv[]) {
     auto gtk_app = Gtk::Application::create(argc, argv, "org.example.glade");
 
     Glib::RefPtr<Gtk::Builder> builder;
-    builder = Gtk::Builder::create_from_file("gui.glade");
+    builder = Gtk::Builder::create_from_file("../gui.glade");
 
     MainWindow app_main(builder);
     

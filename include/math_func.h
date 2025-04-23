@@ -1,0 +1,1 @@
+bool check_delay_outliers(const std::vector<unsigned int>* delays);
