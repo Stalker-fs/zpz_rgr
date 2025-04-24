@@ -15,6 +15,9 @@ add_executable(prog.elf main.cpp ${SOURCES})
 target_include_directories(prog.elf PRIVATE ${GTKMM_INCLUDE_DIRS})
 target_link_libraries(prog.elf ${GTKMM_LIBRARIES})
 
+include_directories("/usr/include/jsoncpp")
+target_link_libraries(prog.elf jsoncpp)
+
 include(FetchContent)
 FetchContent_Declare(
   googletest

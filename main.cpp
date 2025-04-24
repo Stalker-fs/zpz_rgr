@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "include/math_func.h"
+#include "include/config_file.h"
 
 class MainWindow {
     public:
@@ -25,6 +26,7 @@ class MainWindow {
             inp_buf->signal_changed().connect(sigc::mem_fun(*this, &MainWindow::on_txt_changed));
 
             reset->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_reset));
+            apply->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_apply));
             _exit->signal_clicked().connect([]() {exit(0);});
         }
 
@@ -52,6 +54,14 @@ class MainWindow {
 
         std::vector<std::vector<unsigned int>*> delays;
         std::vector<unsigned int>* delay_set = nullptr; 
+
+        void on_apply() {
+            ConfigData data;
+            data.delays = delays;
+            data.max_S = 10;
+
+            save_delays(data);
+        }
 
         void on_reset() {
             is_phrase_set = false;
