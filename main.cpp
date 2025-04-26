@@ -13,6 +13,7 @@ class MainWindow {
             builder->get_widget("reset1", reset);
             builder->get_widget("exit1", _exit);
             builder->get_widget("input1", input);
+            builder->get_widget("name1", name1);
             builder->get_widget("phrase1", phrase);
             builder->get_widget("counter1", counter);
 
@@ -40,6 +41,7 @@ class MainWindow {
         Gtk::Button* reset = nullptr;
         Gtk::Button* _exit = nullptr;
         Gtk::TextView* input = nullptr;
+        Gtk::Entry* name1 = nullptr;
         Gtk::Label* phrase = nullptr;
         Gtk::Label* counter = nullptr;
 
@@ -53,14 +55,32 @@ class MainWindow {
         int phrase_pos = 0;
 
         std::vector<std::vector<unsigned int>*> delays;
-        std::vector<unsigned int>* delay_set = nullptr; 
+        std::vector<unsigned int>* delay_set = nullptr;
+
+        Config conf;
 
         void on_apply() {
-            ConfigData data;
-            data.delays = delays;
-            data.max_S = 10;
+            std::vector<double> S2;
+            for (std::vector<unsigned int>* x : delays) {
+                S2.push_back(sv(x));
+            }
 
-            save_delays(data);
+            auto nm = name1->get_text();
+
+            if (nm.empty()) {
+                name1->grab_focus();
+                return;
+            }
+
+            if (conf.is_user_exist(nm)) {
+                Gtk::MessageDialog dialog(*window, "Username exist. Change it.", false, Gtk::MESSAGE_INFO, Gtk::BUTTONS_OK, true);
+                dialog.run();
+                name1->select_region(0, name1->get_text_length());
+                return;
+            }
+
+            conf.set_user(nm, phrase_text, S2);
+            conf.save();
         }
 
         void on_reset() {
@@ -112,7 +132,7 @@ class MainWindow {
                                 return;
                             }
 
-                            if (phrase_text.length() >= 3) {
+                            if (phrase_text.length() >= 4) {
                                 is_phrase_set = true;
                                 phrase->set_text(phrase_text);
                                 reset->set_sensitive(true);
@@ -131,7 +151,7 @@ class MainWindow {
                 
                         }
 
-                        if (check_delay_outliers(delay_set)) {
+                        if (check_delay_outliers2(delay_set)) {
                             delays.push_back(delay_set);
                             for (const unsigned int x : *delay_set) {
                                 std::cout << x << " ";

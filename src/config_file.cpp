@@ -4,61 +4,60 @@
 
 #include "../include/config_file.h"
 
-void save_delays(struct ConfigData in_data) {
-    Json::Value root;
-    root["max_S"] = in_data.max_S;
-
-    Json::Value data(Json::arrayValue);
-
-    for (std::vector<unsigned int>* x : in_data.delays){
-        Json::Value one_arr(Json::arrayValue);
-        for (const unsigned int y : *x) {
-            one_arr.append(y);
+Config::Config() {
+    std::ifstream fh("delays.json", std::ifstream::binary);
+    if (fh.is_open()) {
+        if (!Json::parseFromStream(builder, fh, &root, &errs)) {
+            std::cerr << "Error JSON: " << errs << std::endl;
         }
-        data.append(one_arr);
+        fh.close();
     }
-    root["data"] = data;
+}
 
+void Config::set_user(const std::string& username, std::string phrase, const std::vector<double>& S2_array) {
+    Json::Value user;
+    Json::Value S2(Json::arrayValue);
+
+    for (const double& val : S2_array) {
+        S2.append(val);
+    }
+
+    user["S2"] = S2;
+    user["phrase"] = phrase;
+    root[username] = user;
+}
+
+void Config::save() {
     Json::StreamWriterBuilder writer;
     std::string json_str = Json::writeString(writer, root);
 
-    std::ofstream fh("delays.json");
-    fh << json_str;
-    fh.close();
+    std::ofstream fh("delays.json", std::ios::trunc);
+    if (fh.is_open()) {
+        fh << json_str;
+        fh.close();
+    } else {
+        std::cerr << "Error opening file for writing!" << std::endl;
+    }
 }
 
-ConfigData load_delays() {
-    std::ifstream fh("delays.json", std::ifstream::binary);
+void Config::get_user_list(std::vector<std::string>& list) {
+    for (const auto& username : root.getMemberNames()) {
+        list.push_back(username);
+    }
+}
 
-    Json::Value root;
-    Json::CharReaderBuilder builder;
-    std::string errs;
-
-    if (!Json::parseFromStream(builder, fh, &root, &errs)) {
-        std::cerr << "Error JSON: " << errs << std::endl;
-        return {};
+bool Config::get_S2(std::string user, std::vector<double>& S2) {
+    if (!root.isMember(user)) {
+        return false;
     }
 
-    std::vector<std::vector<unsigned int>*> delays;
-    // std::vector<unsigned int>* delay_set = nullptr;
-
-    const Json::Value& data = root["data"];
-
-    if (data.isArray()) {
-        for (const Json::Value& set : data) {
-            if (set.isArray()) {
-                std::vector<unsigned int>* delay_set = new std::vector<unsigned int>();
-                for (const Json::Value& val : set) {
-                    delay_set->push_back(val.asUInt());
-                }
-                delays.push_back(delay_set);
-            }
-        }
+    for (const auto& val : root[user]["S2"]) {
+        S2.push_back(val.asDouble());
     }
 
-    ConfigData conf_data;
-    conf_data.delays = delays;
-    conf_data.max_S = root["max_S"].asInt();
-    
-    return conf_data;
+    return true;
+}
+
+bool Config::is_user_exist(std::string user) {
+    return root.isMember(user);
 }
