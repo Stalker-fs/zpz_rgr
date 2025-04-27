@@ -6,7 +6,7 @@
 
 bool check_delay_outliers2(const std::vector<unsigned int>* delays) {
     boost::math::students_t dist(delays->size() - 2);
-    double t_tb = boost::math::quantile(boost::math::complement(dist, 0.05 / 2));
+    double t_tb = boost::math::quantile(boost::math::complement(dist, 0.025 / 2));
 
     for (const unsigned int x : *delays) {
         double M = expected_value(delays, x);        
@@ -63,8 +63,8 @@ double AVG(const std::vector<unsigned int>* delays) {
 }
 
 // sample variance
-double sv(const std::vector<unsigned int>* delays) {
-    double M = AVG(delays);
+double sv(const std::vector<unsigned int>* delays, const double M) {
+    //double M = AVG(delays);
 
     double sum = 0;
     for (const unsigned int x : *delays) {
@@ -75,3 +75,32 @@ double sv(const std::vector<unsigned int>* delays) {
     // S2
 }
 
+long double S(double S2_1, double S2_2, int n) {
+    S2_1 = S2_1 / (double)std::max(S2_1, S2_2);
+    S2_2 = S2_2 / (double)std::max(S2_1, S2_2);
+    //std::cout << "F: " << S2_1 << " S: " << S2_2 << std::endl;
+    long double y = std::pow(S2_1, 2) + std::pow(S2_2, 2);
+    //std::cout << "Y: " << y << std::endl;
+    long double x = (y * (n - 1)) / (2*n - 2);
+    //std::cout << "X: " << x << std::endl;
+    return std::sqrt(x);
+}
+
+long double t_value2(double M1, double M2, long double S_general, int n) {
+    if (M1 == M2) {
+        std::cout << "^----------------^" << std::endl;
+    }
+    double max = std::max(M1, M2);
+    M1 = M1 / max;
+    M2 = M2 / max;
+    double y = std::sqrt(2.0 / n);
+    //std::cout << "YYY: " << y << std::endl; 
+    long double x = S_general * y;
+    //std::cout << "X1: " << S_general << std::endl;
+
+    long double res = std::abs(M1 - M2) / (double)(x);
+    if (res == 0) {
+        std::cout << "M1: " << M1 << " M2: " << M2 << " x: " <<  x << std::endl;
+    }
+    return res;
+}

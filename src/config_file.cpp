@@ -14,17 +14,19 @@ Config::Config() {
     }
 }
 
-void Config::set_user(const std::string& username, std::string phrase, const std::vector<double>& S2_array) {
+void Config::set_user(const std::string& username, std::string phrase, std::map<double, double> S2_dict) {
     Json::Value user;
-    Json::Value S2(Json::arrayValue);
+    Json::Value data(Json::objectValue);
 
-    for (const double& val : S2_array) {
-        S2.append(val);
+    for (const auto& [M, S2] : S2_dict) {
+        data[std::to_string(M)] = S2;
     }
 
-    user["S2"] = S2;
+    user["data"] = data;
     user["phrase"] = phrase;
     root[username] = user;
+
+    // save
 }
 
 void Config::save() {
@@ -46,13 +48,15 @@ void Config::get_user_list(std::vector<std::string>& list) {
     }
 }
 
-bool Config::get_S2(std::string user, std::vector<double>& S2) {
+bool Config::get_M_S2(std::string user, std::map<double, double>& M_S2) {
     if (!root.isMember(user)) {
         return false;
     }
 
-    for (const auto& val : root[user]["S2"]) {
-        S2.push_back(val.asDouble());
+    const Json::Value& data = root[user]["data"];
+    
+    for (const auto& val : data.getMemberNames()) {
+        M_S2[std::stod(val)] = data[val].asDouble();
     }
 
     return true;

@@ -1,13 +1,17 @@
 #include <gtkmm.h>
 #include <glibmm/timer.h>
 #include <iostream>
+#include <boost/math/distributions/students_t.hpp>
 
 #include "include/math_func.h"
 #include "include/config_file.h"
 
-class MainWindow {
+class SingUpWindow : public Gtk::Window {
     public:
-        MainWindow(const Glib::RefPtr<Gtk::Builder>& builder) {        
+        SingUpWindow(const Glib::RefPtr<Gtk::Builder>& builder, Gtk::Window& parent, Config* conf_link) : conf(conf_link) {
+            set_transient_for(parent);
+            set_modal(true);
+
             builder->get_widget("learning1", window);
             builder->get_widget("apply1", apply);
             builder->get_widget("reset1", reset);
@@ -24,11 +28,13 @@ class MainWindow {
             }
 
             inp_buf = input->get_buffer();
-            inp_buf->signal_changed().connect(sigc::mem_fun(*this, &MainWindow::on_txt_changed));
+            inp_buf->signal_changed().connect(sigc::mem_fun(*this, &SingUpWindow::on_txt_changed));
 
-            reset->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_reset));
-            apply->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_apply));
-            _exit->signal_clicked().connect([]() {exit(0);});
+            reset->signal_clicked().connect(sigc::mem_fun(*this, &SingUpWindow::on_reset));
+            apply->signal_clicked().connect(sigc::mem_fun(*this, &SingUpWindow::on_apply));
+            // _exit->signal_clicked().connect([]() {exit(0);});
+            _exit->signal_clicked().connect([this]() { window->hide(); });
+            
         }
 
         Gtk::Window* get_window() {
@@ -57,12 +63,14 @@ class MainWindow {
         std::vector<std::vector<unsigned int>*> delays;
         std::vector<unsigned int>* delay_set = nullptr;
 
-        Config conf;
+        // Config conf;
+        Config* conf = nullptr;
 
         void on_apply() {
-            std::vector<double> S2;
+            std::map<double, double> S2;
             for (std::vector<unsigned int>* x : delays) {
-                S2.push_back(sv(x));
+                double M = AVG(x);
+                S2[M] = sv(x, M);
             }
 
             auto nm = name1->get_text();
@@ -72,15 +80,15 @@ class MainWindow {
                 return;
             }
 
-            if (conf.is_user_exist(nm)) {
+            if (conf->is_user_exist(nm)) {
                 Gtk::MessageDialog dialog(*window, "Username exist. Change it.", false, Gtk::MESSAGE_INFO, Gtk::BUTTONS_OK, true);
                 dialog.run();
                 name1->select_region(0, name1->get_text_length());
                 return;
             }
 
-            conf.set_user(nm, phrase_text, S2);
-            conf.save();
+            conf->set_user(nm, phrase_text, S2);
+            conf->save();
         }
 
         void on_reset() {
@@ -160,7 +168,7 @@ class MainWindow {
                             
                             counter->set_text(std::to_string(delays.size()));
 
-                            if (delays.size() == 10) {
+                            if (delays.size() == 3) {
                                 apply->set_sensitive(true);
                             }                            
                         } else {
@@ -197,6 +205,130 @@ class MainWindow {
         }
 };
 
+class MainWindow {
+    public:
+
+    MainWindow(const Glib::RefPtr<Gtk::Builder>& builder) : builder(builder) {
+        builder->get_widget("main", window);
+        builder->get_widget("enter1", enter);
+        builder->get_widget("singup1", singup);
+        builder->get_widget("check1", check);
+        builder->get_widget("user1", user);
+
+        singup->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_sign_up));
+        check->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_check));
+        enter->signal_activate().connect(sigc::mem_fun(*this, &MainWindow::on_check));
+        enter->signal_changed().connect(sigc::mem_fun(*this, &MainWindow::on_txt_changed));
+    }
+
+    Gtk::Window* get_window() {
+        return window;
+    }
+
+    private:
+
+    Gtk::Window* window = nullptr;
+    Gtk::Entry* enter = nullptr;
+    Gtk::Button* singup = nullptr;
+    Gtk::Button* check = nullptr;
+    Gtk::Label* user = nullptr;
+    std::unique_ptr<SingUpWindow> child_window;
+    Glib::RefPtr<Gtk::Builder> builder;
+    Config conf;
+
+    void on_sign_up() {
+        child_window = std::make_unique<SingUpWindow>(builder, *window, &conf);
+        child_window->get_window()->show();
+    }
+
+    bool is_first_char = true;
+    Glib::Timer timer;
+    std::vector<unsigned int> a_delays;
+
+    void on_txt_changed() {
+        if (is_first_char) {
+            is_first_char = false;
+        } else {
+            double time = timer.elapsed();
+            a_delays.push_back((int)(time * 1000000));
+        }
+
+        timer.reset();
+    }
+
+    void on_check() {
+        enter->set_sensitive(false);
+
+        if (enter->get_text_length() <= 3) {
+            enter->set_text("");
+            is_first_char = true;
+            a_delays.clear();
+            Gtk::MessageDialog dialog(*window, "Short phrase.", false, Gtk::MESSAGE_INFO, Gtk::BUTTONS_OK, true);
+            dialog.run();
+            enter->set_sensitive(true);
+            enter->grab_focus();
+            return;
+        }
+
+        int delay_count = enter->get_text_length() - 1;
+
+        //std::cout << "Len: " << delay_count << std::endl;
+        boost::math::students_t dist(delay_count - 1);
+        double t_tb = boost::math::quantile(boost::math::complement(dist, (1 - 0.30) / 2));
+
+        // for (unsigned int x : a_delays) {
+        //     std::cout << x << " ";
+        // }
+
+        // std::cout << std::endl;
+
+        double M = AVG(&a_delays);
+        double S2 = sv(&a_delays, M);
+        //std::cout << S2 << std::endl;
+
+        std::vector<std::string> u_list;
+        conf.get_user_list(u_list);
+
+        std::pair<std::string, double> winner("Unknown", 0);
+
+        for (std::string &u : u_list) {
+            std::map<double, double> param;
+            int r = 0;
+
+            conf.get_M_S2(u, param);
+
+            for (const auto& [M_e, S2_e] : param) {
+                //std::cout << S2 << " " << S2_e << std::endl;
+                long double S_general = S(S2, S2_e, delay_count);
+                //std::cout << M_e << " " << M << " " << S_general << std::endl;
+                long double t_p_ = t_value2(M_e, M, S_general, delay_count);
+
+                std::cout << "T_p: " << t_p_ << " " << t_tb << std::endl;
+                if (t_p_ <= t_tb) {
+                    r++;
+                }
+            }
+
+            std::cout << "r: " << r << std::endl;
+            double P = r / (double)param.size();
+
+            if (P > winner.second) {
+                winner = {u, P};
+            }
+        }
+        
+        std::cout << "User: " << winner.first << "\nProbability: " << winner.second * 100 << std::endl;
+        user->set_text(winner.first + " " + std::to_string((int)(winner.second * 100)) + "%");
+
+        is_first_char = true;
+        enter->set_text("");
+        is_first_char = true;
+
+        a_delays.clear();
+        enter->set_sensitive(true);
+    }
+};
+
 int main(int argc, char* argv[]) {
     setenv("GTK_THEME", "Adwaita", 1);
     auto gtk_app = Gtk::Application::create(argc, argv, "org.example.glade");
@@ -205,6 +337,12 @@ int main(int argc, char* argv[]) {
     builder = Gtk::Builder::create_from_file("../gui.glade");
 
     MainWindow app_main(builder);
+
+
     
     return gtk_app->run(*app_main.get_window());
 }
+
+
+// 1. n1 n2
+// 2. phrase check
