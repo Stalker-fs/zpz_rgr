@@ -5,6 +5,7 @@
 
 #include "include/math_func.h"
 #include "include/config_file.h"
+#include "include/checkers.h"
 
 class SingUpWindow : public Gtk::Window {
     public:
@@ -214,11 +215,14 @@ class MainWindow {
         builder->get_widget("singup1", singup);
         builder->get_widget("check1", check);
         builder->get_widget("user1", user);
+        builder->get_widget("probability1", prob);
+        builder->get_widget("phrase2", phrase);
+        builder->get_widget("status1", status);
 
         singup->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_sign_up));
         check->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_check));
         enter->signal_activate().connect(sigc::mem_fun(*this, &MainWindow::on_check));
-        enter->signal_changed().connect(sigc::mem_fun(*this, &MainWindow::on_txt_changed));
+        enter->signal_changed().connect(sigc::mem_fun(*this, &MainWindow::on_txt_changed)); 
     }
 
     Gtk::Window* get_window() {
@@ -232,6 +236,9 @@ class MainWindow {
     Gtk::Button* singup = nullptr;
     Gtk::Button* check = nullptr;
     Gtk::Label* user = nullptr;
+    Gtk::Label* prob = nullptr;
+    Gtk::Label* phrase = nullptr;
+    Gtk::Label* status = nullptr;
     std::unique_ptr<SingUpWindow> child_window;
     Glib::RefPtr<Gtk::Builder> builder;
     Config conf;
@@ -292,6 +299,23 @@ class MainWindow {
         std::pair<std::string, double> winner("Unknown", 0);
 
         for (std::string &u : u_list) {
+
+            std::vector<double> S2_array;
+
+            conf.get_S2(u, S2_array);
+
+            // for (unsigned int x : S2_array) {
+            //     std::cout << x << " ";
+            // }
+
+            // std::cout << std::endl;
+
+            if (!fisher(S2_array, S2, conf.get_phrase_len(u), delay_count)) {
+                std::cout << u << " fisher test faill." << std::endl;
+                //return;
+                continue;
+            }
+
             std::map<double, double> param;
             int r = 0;
 
@@ -299,9 +323,9 @@ class MainWindow {
 
             for (const auto& [M_e, S2_e] : param) {
                 //std::cout << S2 << " " << S2_e << std::endl;
-                long double S_general = S(S2, S2_e, delay_count);
+                double S_general = S(S2, S2_e, delay_count, conf.get_phrase_len(u));
                 //std::cout << M_e << " " << M << " " << S_general << std::endl;
-                long double t_p_ = t_value2(M_e, M, S_general, delay_count);
+                double t_p_ = t_value2(M_e, M, S_general, delay_count);
 
                 std::cout << "T_p: " << t_p_ << " " << t_tb << std::endl;
                 if (t_p_ <= t_tb) {
@@ -318,7 +342,26 @@ class MainWindow {
         }
         
         std::cout << "User: " << winner.first << "\nProbability: " << winner.second * 100 << std::endl;
-        user->set_text(winner.first + " " + std::to_string((int)(winner.second * 100)) + "%");
+
+        user->set_text(winner.first);
+        prob->set_text(std::to_string((int)(winner.second * 100)) + "%");
+        
+        if (winner.second > 0) {
+            if (conf.check_credentials(winner.first, enter->get_text())) {
+                phrase->set_markup("<span foreground=\"green\">Correct</span>");
+                if (winner.second >= 0.7) {
+                    status->set_markup("<span foreground=\"green\">Authorized</span>");
+                } else {
+                    status->set_markup("<span foreground=\"red\">Unauthorized</span>");
+                }
+            } else {
+                phrase->set_markup("<span foreground=\"red\">Fail</span>");
+                status->set_markup("<span foreground=\"red\">Unauthorized</span>");
+            }
+        } else {
+            phrase->set_text("-");
+            status->set_text("-");
+        }
 
         is_first_char = true;
         enter->set_text("");
@@ -326,6 +369,7 @@ class MainWindow {
 
         a_delays.clear();
         enter->set_sensitive(true);
+        enter->grab_focus();
     }
 };
 
@@ -344,5 +388,3 @@ int main(int argc, char* argv[]) {
 }
 
 
-// 1. n1 n2
-// 2. phrase check

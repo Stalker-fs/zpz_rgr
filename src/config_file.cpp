@@ -62,6 +62,32 @@ bool Config::get_M_S2(std::string user, std::map<double, double>& M_S2) {
     return true;
 }
 
+bool Config::get_S2(std::string user, std::vector<double>& S2) {
+    if (!root.isMember(user)) {
+        return false;
+    }
+
+    const Json::Value& data = root[user]["data"];
+    
+    for (const auto& val : data.getMemberNames()) {
+        S2.push_back(data[val].asDouble());
+    }
+
+    return true;
+}
+
+int Config::get_phrase_len(std::string user) {
+    return root[user]["phrase"].asString().length();
+}
+
 bool Config::is_user_exist(std::string user) {
     return root.isMember(user);
+}
+
+bool Config::check_credentials(std::string user, std::string phrase) {
+    if (root.isMember(user) && root[user]["phrase"].asString() == phrase) {
+        return true;
+    }
+    
+    return false;
 }

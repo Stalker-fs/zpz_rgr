@@ -13,6 +13,9 @@ class Config {
         void get_user_list(std::vector<std::string>& list);
         bool get_M_S2(std::string user, std::map<double, double>& M_S2);
         bool is_user_exist(std::string user);
+        bool get_S2(std::string user, std::vector<double>& S2);
+        int get_phrase_len(std::string user);
+        bool check_credentials(std::string user, std::string phrase);
     
     private:
         Json::Value root;

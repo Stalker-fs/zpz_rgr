@@ -23,13 +23,13 @@ bool check_delay_outliers2(const std::vector<unsigned int>* delays) {
 }
 
 double expected_value(const std::vector<unsigned int>* delays, int element) {
-    int sum = 0;
+    double sum = 0;
     for (const unsigned int x : *delays) {
         sum += x;
     }
 
     sum -= element;
-    return sum / (double)(delays->size()-1);
+    return sum / (delays->size()-1);
     // M
 }
 
@@ -40,7 +40,7 @@ double loov(const std::vector<unsigned int>* delays, int element, double M) {
         sum_s += std::pow(x - M, 2);
     }
     sum_s -= std::pow(element - M, 2);
-    return sum_s / (double)(delays->size() - 2);
+    return sum_s / (delays->size() - 2);
     // S2
 }
 
@@ -64,8 +64,6 @@ double AVG(const std::vector<unsigned int>* delays) {
 
 // sample variance
 double sv(const std::vector<unsigned int>* delays, const double M) {
-    //double M = AVG(delays);
-
     double sum = 0;
     for (const unsigned int x : *delays) {
         sum += std::pow(x - M, 2);
@@ -75,32 +73,20 @@ double sv(const std::vector<unsigned int>* delays, const double M) {
     // S2
 }
 
-long double S(double S2_1, double S2_2, int n) {
-    S2_1 = S2_1 / (double)std::max(S2_1, S2_2);
-    S2_2 = S2_2 / (double)std::max(S2_1, S2_2);
-    //std::cout << "F: " << S2_1 << " S: " << S2_2 << std::endl;
-    long double y = std::pow(S2_1, 2) + std::pow(S2_2, 2);
-    //std::cout << "Y: " << y << std::endl;
-    long double x = (y * (n - 1)) / (2*n - 2);
-    //std::cout << "X: " << x << std::endl;
-    return std::sqrt(x);
+double S(double S2_1, double S2_2, int n_1, int n_2) {
+    double max = std::max(S2_1, S2_2);
+    S2_1 /= max;
+    S2_2 /= max;
+
+    // n1 + n2 - 2; why -1?
+    return std::sqrt((std::pow(S2_1, 2) * (n_1 - 1) + std::pow(S2_2, 2) * (n_2 - 1)) / (n_1 + n_2 - 1));
 }
 
-long double t_value2(double M1, double M2, long double S_general, int n) {
-    if (M1 == M2) {
-        std::cout << "^----------------^" << std::endl;
-    }
+double t_value2(double M1, double M2, double S_general, int n) {
     double max = std::max(M1, M2);
-    M1 = M1 / max;
-    M2 = M2 / max;
-    double y = std::sqrt(2.0 / n);
-    //std::cout << "YYY: " << y << std::endl; 
-    long double x = S_general * y;
-    //std::cout << "X1: " << S_general << std::endl;
 
-    long double res = std::abs(M1 - M2) / (double)(x);
-    if (res == 0) {
-        std::cout << "M1: " << M1 << " M2: " << M2 << " x: " <<  x << std::endl;
-    }
-    return res;
+    M1 /= max;
+    M2 /= max;
+
+    return std::abs(M1 - M2) / (S_general * std::sqrt(2.0 / n));
 }
