@@ -1,6 +1,5 @@
 #include <gtkmm.h>
 #include <glibmm/timer.h>
-#include <iostream>
 
 #include "include/config.h"
 #include "include/processing.h"
@@ -55,7 +54,6 @@ class SingUpWindow : public Gtk::Window {
         std::vector<std::vector<unsigned int>*> delays;
         std::vector<unsigned int>* delay_set = nullptr;
 
-        // Config conf;
         Config* conf = nullptr;
 
         void on_apply() {
@@ -70,9 +68,9 @@ class SingUpWindow : public Gtk::Window {
             }
 
             if (conf->is_user_exist(nm)) {
+                name1->select_region(0, name1->get_text_length());
                 Gtk::MessageDialog dialog(*window, "Username exist. Change it.", false, Gtk::MESSAGE_INFO, Gtk::BUTTONS_OK, true);
                 dialog.run();
-                name1->select_region(0, name1->get_text_length());
                 return;
             }
 
@@ -110,7 +108,6 @@ class SingUpWindow : public Gtk::Window {
                     is_first_char = true;
                     phrase_pos = 0;
 
-                    //save delays
                     if (delay_set) {
                         if (is_phrase_set && (delay_set->size() != phrase_text.length()-1)) {
                             Gtk::MessageDialog dialog(*window, "Bad input. Incomplete phrase. Try again.", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
@@ -124,6 +121,7 @@ class SingUpWindow : public Gtk::Window {
                             if (phrase_text.find('\n') != std::string::npos) {
                                 Gtk::MessageDialog dialog(*window, "Bad input. '\\n' in phase. Don't use it!", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
                                 dialog.run();
+
                                 phrase_text.clear();
                                 delay_set = nullptr;
                                 inp_buf->set_text("");
@@ -133,14 +131,11 @@ class SingUpWindow : public Gtk::Window {
                             if (phrase_text.length() >= 4) {
                                 is_phrase_set = true;
                                 phrase->set_text(phrase_text);
-                                reset->set_sensitive(true);
-
-                                //std::cout << std::endl;
-                                std::cout << "Phrase: " << text;
-                                //std::cout << "-------------------------------"  << std::endl;                                
+                                reset->set_sensitive(true);                              
                             } else {
-                                Gtk::MessageDialog dialog(*window, "Bad input. Short phrase. Min phrase len is: 3.", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
+                                Gtk::MessageDialog dialog(*window, "Bad input. Short phrase. Min phrase len is: 4.", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
                                 dialog.run();
+
                                 phrase_text.clear();
                                 delay_set = nullptr;
                                 inp_buf->set_text("");
@@ -151,14 +146,9 @@ class SingUpWindow : public Gtk::Window {
 
                         if (check_delay_outliers2(delay_set)) {
                             delays.push_back(delay_set);
-                            for (const unsigned int x : *delay_set) {
-                                std::cout << x << " ";
-                            }
-                            std::cout << std::endl;
-                            
                             counter->set_text(std::to_string(delays.size()));
 
-                            if (delays.size() == 3) {
+                            if (delays.size() == 10) {
                                 apply->set_sensitive(true);
                             }                            
                         } else {
@@ -174,8 +164,10 @@ class SingUpWindow : public Gtk::Window {
                         if ((phrase_pos >= phrase_text.length()) || (phrase_text[phrase_pos] != last_char)) {
                             phrase_pos = 0;
                             delay_set = nullptr;
+
                             Gtk::MessageDialog dialog(*window, "Bad input. Try again.", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
                             dialog.run();
+
                             inp_buf->insert_at_cursor("\n");
                             return;
                         } else {
@@ -185,7 +177,6 @@ class SingUpWindow : public Gtk::Window {
 
                     if (!is_first_char) {
                         delay_set->push_back((int)(time * 1000000)); // µs
-                        //std::cout << delay_set->back() << " ";
                     } else {
                         is_first_char = false;
                         delay_set = new std::vector<unsigned int>();
@@ -279,7 +270,7 @@ class MainWindow {
         if (winner.second > 0) {
             if (conf.check_credentials(winner.first, enter->get_text())) {
                 phrase->set_markup("<span foreground=\"green\">Correct</span>");
-                if (winner.second >= 0.7) {
+                if ((int)(winner.second * 100) >= 70) {
                     status->set_markup("<span foreground=\"green\">Authorized</span>");
                 } else {
                     status->set_markup("<span foreground=\"red\">Unauthorized</span>");
@@ -309,11 +300,8 @@ int main(int argc, char* argv[]) {
 
     Glib::RefPtr<Gtk::Builder> builder;
     builder = Gtk::Builder::create_from_file("../gui.glade");
-
     MainWindow app_main(builder);
 
-
-    
     return gtk_app->run(*app_main.get_window());
 }
 

@@ -19,7 +19,7 @@ void Config::set_user(const std::string& username, std::string phrase, std::map<
     Json::Value data(Json::objectValue);
 
     for (const auto& [M, S2] : S2_dict) {
-        data[std::to_string(M)] = S2;
+        data[std::to_string((unsigned long int)M)] = (unsigned long int)S2;
     }
 
     user["data"] = data;

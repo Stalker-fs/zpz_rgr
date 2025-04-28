@@ -1,5 +1,4 @@
 #include <cmath>
-#include <iostream>
 #include <vector>
 
 #include "../include/math_utils.h"

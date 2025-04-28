@@ -1,7 +1,6 @@
 #include <boost/math/distributions/students_t.hpp>
 #include <boost/math/distributions/fisher_f.hpp>
 #include <map>
-#include <iostream>
 
 #include "../include/math_utils.h"
 #include "../include/config.h"
@@ -17,7 +16,6 @@ bool fisher(std::vector<float>& S2_array_1, float S2_inp_1, int size_1, int size
 
     float f_p = max / S2_inp_1;
 
-    //std::cout << "f_p: " << f_p << " f_tb: " << f_tb << std::endl;
     if (f_p > f_tb) {
         return false;
     }
@@ -58,25 +56,21 @@ void search_user(std::vector<unsigned int>& a_delays, Config &conf, std::pair<st
         conf.get_S2(u, S2_array);
 
         if (!fisher(S2_array, S2, conf.get_phrase_len(u), a_delays.size())) {
-            //std::cout << u << " fisher test faill." << std::endl;
             continue;
         }
 
         float r = 0;
-
         std::map<float, float> param;
         conf.get_M_S2(u, param);
 
         for (const auto& [M_e, S2_e] : param) {
             float S_general = S(S2, S2_e, a_delays.size(), conf.get_phrase_len(u));
             float t_p_ = t_value2(M_e, M, S_general, a_delays.size(), conf.get_phrase_len(u));
-            //std::cout << "T_p: " << t_p_ << " " << t_tb << std::endl;
             if (t_p_ <= t_tb) {
                 r++;
             }
         }
 
-        //std::cout << "r: " << r << std::endl;
         float P = r / param.size();
 
         if (P > winner.second) {
