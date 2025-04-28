@@ -31,5 +31,5 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 
 add_executable(math_unit_tests tests/test_math_func.cpp)
-target_link_libraries(math_unit_tests gtest gtest_main)
+target_link_libraries(math_unit_tests gtest gtest_main jsoncpp)
 add_test(NAME math_unit_tests COMMAND math_unit_tests)

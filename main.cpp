@@ -1,11 +1,9 @@
 #include <gtkmm.h>
 #include <glibmm/timer.h>
 #include <iostream>
-#include <boost/math/distributions/students_t.hpp>
 
-#include "include/math_func.h"
-#include "include/config_file.h"
-#include "include/checkers.h"
+#include "include/config.h"
+#include "include/processing.h"
 
 class SingUpWindow : public Gtk::Window {
     public:
@@ -21,12 +19,6 @@ class SingUpWindow : public Gtk::Window {
             builder->get_widget("name1", name1);
             builder->get_widget("phrase1", phrase);
             builder->get_widget("counter1", counter);
-
-            if (!(window && apply && reset && input && phrase && counter)) {
-                Gtk::MessageDialog dialog(*window, "Bad gui.glade file.", false, Gtk::MESSAGE_ERROR, Gtk::BUTTONS_OK, true);
-                dialog.run();
-                return;
-            }
 
             inp_buf = input->get_buffer();
             inp_buf->signal_changed().connect(sigc::mem_fun(*this, &SingUpWindow::on_txt_changed));
@@ -68,11 +60,8 @@ class SingUpWindow : public Gtk::Window {
         Config* conf = nullptr;
 
         void on_apply() {
-            std::map<double, double> S2;
-            for (std::vector<unsigned int>* x : delays) {
-                double M = AVG(x);
-                S2[M] = sv(x, M);
-            }
+            std::map<float, float> S2;
+            calc_variance(delays, S2);
 
             auto nm = name1->get_text();
 
@@ -89,7 +78,7 @@ class SingUpWindow : public Gtk::Window {
             }
 
             conf->set_user(nm, phrase_text, S2);
-            conf->save();
+            //conf->save();
         }
 
         void on_reset() {
@@ -110,7 +99,7 @@ class SingUpWindow : public Gtk::Window {
         }
 
         void on_txt_changed() {
-            double time = timer.elapsed();
+            float time = timer.elapsed();
             timer.reset();
 
             auto text = inp_buf->get_text();
@@ -256,7 +245,7 @@ class MainWindow {
         if (is_first_char) {
             is_first_char = false;
         } else {
-            double time = timer.elapsed();
+            float time = timer.elapsed();
             a_delays.push_back((int)(time * 1000000));
         }
 
@@ -270,78 +259,17 @@ class MainWindow {
             enter->set_text("");
             is_first_char = true;
             a_delays.clear();
+
             Gtk::MessageDialog dialog(*window, "Short phrase.", false, Gtk::MESSAGE_INFO, Gtk::BUTTONS_OK, true);
             dialog.run();
+            
             enter->set_sensitive(true);
             enter->grab_focus();
             return;
         }
 
-        int delay_count = enter->get_text_length() - 1;
-
-        //std::cout << "Len: " << delay_count << std::endl;
-        boost::math::students_t dist(delay_count - 1);
-        double t_tb = boost::math::quantile(boost::math::complement(dist, (1 - 0.30) / 2));
-
-        // for (unsigned int x : a_delays) {
-        //     std::cout << x << " ";
-        // }
-
-        // std::cout << std::endl;
-
-        double M = AVG(&a_delays);
-        double S2 = sv(&a_delays, M);
-        //std::cout << S2 << std::endl;
-
-        std::vector<std::string> u_list;
-        conf.get_user_list(u_list);
-
-        std::pair<std::string, double> winner("Unknown", 0);
-
-        for (std::string &u : u_list) {
-
-            std::vector<double> S2_array;
-
-            conf.get_S2(u, S2_array);
-
-            // for (unsigned int x : S2_array) {
-            //     std::cout << x << " ";
-            // }
-
-            // std::cout << std::endl;
-
-            if (!fisher(S2_array, S2, conf.get_phrase_len(u), delay_count)) {
-                std::cout << u << " fisher test faill." << std::endl;
-                //return;
-                continue;
-            }
-
-            std::map<double, double> param;
-            int r = 0;
-
-            conf.get_M_S2(u, param);
-
-            for (const auto& [M_e, S2_e] : param) {
-                //std::cout << S2 << " " << S2_e << std::endl;
-                double S_general = S(S2, S2_e, delay_count, conf.get_phrase_len(u));
-                //std::cout << M_e << " " << M << " " << S_general << std::endl;
-                double t_p_ = t_value2(M_e, M, S_general, delay_count);
-
-                std::cout << "T_p: " << t_p_ << " " << t_tb << std::endl;
-                if (t_p_ <= t_tb) {
-                    r++;
-                }
-            }
-
-            std::cout << "r: " << r << std::endl;
-            double P = r / (double)param.size();
-
-            if (P > winner.second) {
-                winner = {u, P};
-            }
-        }
-        
-        std::cout << "User: " << winner.first << "\nProbability: " << winner.second * 100 << std::endl;
+        std::pair<std::string, float> winner("Unknown", 0);
+        search_user(a_delays, conf, winner);
 
         user->set_text(winner.first);
         prob->set_text(std::to_string((int)(winner.second * 100)) + "%");
@@ -386,5 +314,4 @@ int main(int argc, char* argv[]) {
     
     return gtk_app->run(*app_main.get_window());
 }
-
 

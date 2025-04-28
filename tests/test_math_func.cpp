@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
-#include "../src/math_func.cpp"
+
+#include "../src/math_utils.cpp"
+#include "../src/config.cpp"
+#include "../src/processing.cpp"
 
 struct DelayCase {
     std::vector<unsigned int> delays;
