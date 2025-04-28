@@ -60,15 +60,14 @@ float S(float S2_1, float S2_2, int n_1, int n_2) {
     S2_1 /= max;
     S2_2 /= max;
 
-    // n1 + n2 - 2; why -1?
-    return std::sqrt((std::pow(S2_1, 2) * (n_1 - 1) + std::pow(S2_2, 2) * (n_2 - 1)) / (n_1 + n_2 - 1));
+    return std::sqrt((S2_1 * (n_1 - 1) + S2_2, 2 * (n_2 - 1)) / (n_1 + n_2 - 2));
 }
 
-float t_value2(float M1, float M2, float S_general, int n) {
+float t_value2(float M1, float M2, float S_general, int n1, int n2) {
     float max = std::max(M1, M2);
 
     M1 /= max;
     M2 /= max;
 
-    return std::abs(M1 - M2) / (S_general * std::sqrt(2.0 / n));
+    return std::abs(M1 - M2) / (S_general * std::sqrt((1.0 / n1) + (1.0 / n2)));
 }

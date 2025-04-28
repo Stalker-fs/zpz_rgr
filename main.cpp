@@ -25,8 +25,7 @@ class SingUpWindow : public Gtk::Window {
 
             reset->signal_clicked().connect(sigc::mem_fun(*this, &SingUpWindow::on_reset));
             apply->signal_clicked().connect(sigc::mem_fun(*this, &SingUpWindow::on_apply));
-            // _exit->signal_clicked().connect([]() {exit(0);});
-            _exit->signal_clicked().connect([this]() { window->hide(); });
+            _exit->signal_clicked().connect([this]() { window->hide();});
             
         }
 
@@ -78,7 +77,7 @@ class SingUpWindow : public Gtk::Window {
             }
 
             conf->set_user(nm, phrase_text, S2);
-            //conf->save();
+            on_reset();
         }
 
         void on_reset() {
@@ -93,6 +92,7 @@ class SingUpWindow : public Gtk::Window {
 
             phrase->set_text("-");
             inp_buf->set_text("");
+            name1->set_text("");
             counter->set_text("0");
             reset->set_sensitive(false);
             apply->set_sensitive(false);
@@ -233,7 +233,9 @@ class MainWindow {
     Config conf;
 
     void on_sign_up() {
-        child_window = std::make_unique<SingUpWindow>(builder, *window, &conf);
+        if (!child_window) {
+            child_window = std::make_unique<SingUpWindow>(builder, *window, &conf);
+        }
         child_window->get_window()->show();
     }
 

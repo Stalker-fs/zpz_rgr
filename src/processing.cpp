@@ -45,7 +45,7 @@ bool check_delay_outliers2(const std::vector<unsigned int>* delays) {
 
 void search_user(std::vector<unsigned int>& a_delays, Config &conf, std::pair<std::string, float>& winner) {
     boost::math::students_t dist(a_delays.size() - 1);
-    float t_tb = boost::math::quantile(boost::math::complement(dist, (1 - 0.30) / 2));
+    float t_tb = boost::math::quantile(boost::math::complement(dist, (1 - 0.08) / 2));
 
     float M = AVG(&a_delays);
     float S2 = sv(&a_delays, M);
@@ -69,7 +69,7 @@ void search_user(std::vector<unsigned int>& a_delays, Config &conf, std::pair<st
 
         for (const auto& [M_e, S2_e] : param) {
             float S_general = S(S2, S2_e, a_delays.size(), conf.get_phrase_len(u));
-            float t_p_ = t_value2(M_e, M, S_general, a_delays.size());
+            float t_p_ = t_value2(M_e, M, S_general, a_delays.size(), conf.get_phrase_len(u));
             //std::cout << "T_p: " << t_p_ << " " << t_tb << std::endl;
             if (t_p_ <= t_tb) {
                 r++;
