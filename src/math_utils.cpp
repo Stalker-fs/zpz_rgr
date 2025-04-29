@@ -59,7 +59,7 @@ float S(float S2_1, float S2_2, int n_1, int n_2) {
     S2_1 /= max;
     S2_2 /= max;
 
-    return std::sqrt((S2_1 * (n_1 - 1) + S2_2, 2 * (n_2 - 1)) / (n_1 + n_2 - 2));
+    return std::sqrt((S2_1 * (n_1 - 1) + S2_2 * (n_2 - 1)) / (n_1 + n_2 - 2));
 }
 
 float t_value2(float M1, float M2, float S_general, int n1, int n2) {

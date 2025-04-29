@@ -198,6 +198,9 @@ class MainWindow {
         builder->get_widget("probability1", prob);
         builder->get_widget("phrase2", phrase);
         builder->get_widget("status1", status);
+        builder->get_widget("s_mean", mean);
+        builder->get_widget("s_variance", s_variance);
+        builder->get_widget("p_value", p_val);
 
         singup->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_sign_up));
         check->signal_clicked().connect(sigc::mem_fun(*this, &MainWindow::on_check));
@@ -219,6 +222,9 @@ class MainWindow {
     Gtk::Label* prob = nullptr;
     Gtk::Label* phrase = nullptr;
     Gtk::Label* status = nullptr;
+    Gtk::Label* mean = nullptr;
+    Gtk::Label* s_variance = nullptr;
+    Gtk::SpinButton* p_val = nullptr;
     std::unique_ptr<SingUpWindow> child_window;
     Glib::RefPtr<Gtk::Builder> builder;
     Config conf;
@@ -262,10 +268,16 @@ class MainWindow {
         }
 
         std::pair<std::string, float> winner("Unknown", 0);
-        search_user(a_delays, conf, winner);
+        std::pair<float, float> M_S2_pair(0, 0);
+
+        float p_ = p_val->get_value();
+
+        search_user(a_delays, conf, winner, M_S2_pair, p_);
 
         user->set_text(winner.first);
         prob->set_text(std::to_string((int)(winner.second * 100)) + "%");
+        mean->set_text(std::to_string((long int)M_S2_pair.first));
+        s_variance->set_text(std::to_string((long int)M_S2_pair.second));
         
         if (winner.second > 0) {
             if (conf.check_credentials(winner.first, enter->get_text())) {
